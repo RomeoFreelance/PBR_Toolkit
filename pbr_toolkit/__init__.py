@@ -1,13 +1,17 @@
 # pbr_toolkit/__init__.py
-# Addon Blender unifie - PBR Toolkit (workflow capture top-view -> material) :
-#   Etape 1 : Render Top View  (albedo ortho, passe DiffCol Cycles)
-#   Etape 2 : SAM segment       (script externe -> masques image-space)
-#   Etape 3 : Masks to UV        (reprojection des masques vers l'espace UV)
-#   Etape 4 : Setup Material     (node graph PBR ajustable)
+# Addon Blender — PBR Toolkit : workflow capture top-view → material PBR.
 #
-# Les trois etapes Blender partagent le meme onglet N-Panel "PBR Toolkit" et la
-# meme convention de nommage {dish}_*.png. La camera ortho persistante creee a
-# l'etape 1 sert de contrat (cx, cy, extent, resolution) pour l'etape 3.
+#   Étape 1 : Render Top View  (albédo ortho, passe DiffCol Cycles)
+#   Étape 2 : Segmentation IA  (externe → masques espace-image)
+#   Étape 3 : Masks to UV       (reprojection des masques vers l'espace UV)
+#   Étape 4 : Setup Material    (node graph PBR ajustable)
+#
+# Architecture en couches :
+#   properties.py  modèle de données unique (scene.pbr_toolkit)
+#   operators.py   opérateurs fins
+#   ui.py          panneau parent + sous-panneaux
+#   core/          logique métier (naming, camera_contract, image_io,
+#                  render, reproject, material)
 
 bl_info = {
     "name": "PBR Toolkit",
@@ -15,24 +19,32 @@ bl_info = {
     "version": (1, 0, 0),
     "blender": (4, 0, 0),
     "location": "View3D > N-Panel > PBR Toolkit",
-    "description": "Render top-view, reprojection des masques SAM vers UV, "
-                   "et setup du material PBR - tout-en-un.",
+    "description": "Capture top-view, reprojection de masques vers UV, "
+                   "et setup de material PBR ajustable.",
     "category": "Material",
 }
 
-from . import render_topview
-from . import masks_to_uv
-from . import setup_material
+import bpy
+from bpy.props import PointerProperty
 
-# Ordre d'enregistrement = ordre logique du workflow.
-_modules = (render_topview, masks_to_uv, setup_material)
+from . import properties
+from . import operators
+from . import ui
+
+_classes = (
+    properties.PBRTK_Settings,
+    *operators.classes,
+    *ui.classes,
+)
 
 
 def register():
-    for mod in _modules:
-        mod.register()
+    for cls in _classes:
+        bpy.utils.register_class(cls)
+    bpy.types.Scene.pbr_toolkit = PointerProperty(type=properties.PBRTK_Settings)
 
 
 def unregister():
-    for mod in reversed(_modules):
-        mod.unregister()
+    del bpy.types.Scene.pbr_toolkit
+    for cls in reversed(_classes):
+        bpy.utils.unregister_class(cls)
