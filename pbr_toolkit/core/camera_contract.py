@@ -1,8 +1,8 @@
 """
-camera_contract.py — contrat géométrique porté par la caméra ortho persistante.
+camera_contract.py — geometric contract carried by the persistent ortho camera.
 
-Source unique de vérité entre l'étape 1 (rendu, qui écrit) et l'étape 3
-(reprojection, qui lit). Stocké en custom properties sur l'objet caméra.
+Single source of truth between step 1 (render, which writes it) and step 3
+(reprojection, which reads it). Stored as custom properties on the camera object.
 """
 
 from dataclasses import dataclass

@@ -1,111 +1,113 @@
 # PBR Toolkit
 
-Addon Blender pour texturer des objets capturés en top-view (photogrammétrie,
-scans à plat, n'importe quel asset). Il couvre toute la chaîne : rendu de
-l'albédo vu du dessus, reprojection de masques générés par IA vers l'espace UV,
-et construction d'un material PBR multi-zones ajustable.
+A Blender add-on to texture objects captured top-down (photogrammetry, flat
+scans, any asset). It covers the whole chain: rendering the albedo seen from
+above, reprojecting AI-generated masks into UV space, and building an
+adjustable multi-zone PBR material.
 
-> Blender **4.0+** · moteur **Cycles** requis pour l'étape de rendu.
+> Blender **4.0+** · **Cycles** required for the render step.
 
 ---
 
-## Le workflow
+## Workflow
 
 ```
 ┌─────────────────┐   ┌──────────────┐   ┌─────────────────┐   ┌──────────────────┐
 │ 1. Render Top   │   │ 2. Segment   │   │ 3. Masks to UV  │   │ 4. Setup Material│
-│    View         │ → │   (IA, ext.) │ → │                 │ → │                  │
-│ albédo ortho    │   │ masques      │   │ reprojection    │   │ node graph PBR   │
-│ + caméra ortho  │   │ espace-image │   │ image → UV      │   │ ajustable        │
-│ persistante     │   │              │   │                 │   │                  │
+│    View         │ → │   (AI, ext.) │ → │                 │ → │                  │
+│ ortho albedo    │   │ image-space  │   │ reprojection    │   │ adjustable PBR   │
+│ + persistent    │   │ masks        │   │ image → UV      │   │ node graph       │
+│ ortho camera    │   │              │   │                 │   │                  │
 └─────────────────┘   └──────────────┘   └─────────────────┘   └──────────────────┘
 ```
 
-Tout vit dans **un seul dossier projet** et tourne autour d'un **nom de base**
-(par défaut le nom du mesh actif). Le fil rouge est la **caméra ortho
-persistante** créée à l'étape 1 : elle stocke en custom properties (`pbrtk_*`)
-le contrat géométrique (mesh cible, centre, extent, résolution) que l'étape 3
-relit pour reprojeter sans erreur.
+Everything lives in **a single project folder** and revolves around a **base
+name** (the active mesh name by default). The backbone is the **persistent
+ortho camera** created in step 1: it stores, as custom properties (`pbrtk_*`),
+the geometric contract (target mesh, center, extent, resolution) that step 3
+reads back to reproject without error.
 
-### Étape 1 — Render Top View
-Rendu orthographique vu du dessus via la passe **DiffCol** (Cycles, 1 sample) :
-l'albédo « à plat » sans ombrage. Crée/réutilise une caméra ortho nommée cadrée
-automatiquement sur la bounding box du mesh sélectionné.
+### Step 1 — Render Top View
+Orthographic top-down render via the **DiffCol** pass (Cycles, 1 sample): the
+"flat" albedo without shading. Creates/reuses a named ortho camera framed
+automatically on the selected mesh's bounding box.
 → `{base}_topview.png`
 
-### Étape 2 — Segmentation IA (externe)
-Hors Blender : segmentez le rendu top-view (ex. SAM) pour produire un masque
-binaire par zone, dans l'espace image du rendu.
-→ `{base}_mask_1.png`, `{base}_mask_2.png`, … (et optionnellement
+### Step 2 — AI Segmentation (external)
+Outside Blender: segment the top-view render (e.g. SAM) to produce one binary
+mask per zone, in the render's image space.
+→ `{base}_mask_1.png`, `{base}_mask_2.png`, … (optionally
 `{base}_mask_plate.png`)
 
-### Étape 3 — Masks to UV
-Reprojette **tous** les masques espace-image de l'asset (numérotés + plate) vers
-l'espace UV du mesh. Reprojection inverse vectorisée (NumPy) sur le **mesh
-évalué** (modifiers appliqués), cohérente avec le rendu. Option d'*edge padding*
-contre les cracks aux seams.
-→ `{base}_mask_1_uv.png`, … (suffixe `_uv` ajouté)
+### Step 3 — Masks to UV
+Reprojects **all** image-space masks of the asset (numbered + plate) into the
+mesh UV space. Vectorized inverse reprojection (NumPy) on the **evaluated mesh**
+(modifiers applied), consistent with the render. Optional *edge padding* against
+seam cracks.
+→ `{base}_mask_1_uv.png`, … (`_uv` suffix added)
 
-### Étape 4 — Setup Material
-Construit un node group **PBRToolkit_Controls** (HSV, normal map, bump, chaînes
-Roughness/Specular/Subsurface par zone) câblé sur un Principled BSDF. Le material
-consomme les masques **espace-UV** (`_uv`). Sliders d'ajustement par zone exposés
-sur le group.
+### Step 4 — Setup Material
+Builds a **PBRToolkit_Controls** node group (HSV, normal map, bump, per-zone
+Roughness/Specular/Subsurface chains) wired into a Principled BSDF. The material
+consumes the **UV-space** masks (`_uv`). Per-zone adjustment sliders are exposed
+on the group.
+
+**Overrides:** every input can be overridden manually (file pickers for
+diffuse/normal/subsurface/plate, plus a dynamic zone-mask list with a per-mask
+invert toggle). Leave a field empty to fall back to the naming convention.
 
 ---
 
 ## Installation
 
-1. Téléchargez/clonez ce dépôt.
-2. Zippez le dossier **`pbr_toolkit/`** (le zip doit contenir le dossier
-   `pbr_toolkit/` à sa racine, pas son contenu en vrac).
-3. Blender › `Edit > Preferences > Add-ons > Install…` › sélectionnez le zip.
-4. Activez **« PBR Toolkit »**. L'onglet apparaît dans le N-Panel de la 3D View.
+1. Download/clone this repository.
+2. Zip the **`pbr_toolkit/`** folder (the zip must contain the `pbr_toolkit/`
+   folder at its root, not its loose contents).
+3. Blender › `Edit > Preferences > Add-ons > Install…` › select the zip.
+4. Enable **"PBR Toolkit"**. The tab appears in the 3D View N-Panel.
 
 ---
 
-## Convention de nommage
+## Naming convention
 
-Tous les fichiers d'un asset partagent le préfixe `{base}` (= nom de base,
-par défaut le nom du mesh), dans le **dossier projet** :
+All files of an asset share the `{base}` prefix (the base name, the mesh name
+by default), inside the **project folder**:
 
-| Fichier                      | Espace | Rôle                                    |
-| ---------------------------- | ------ | --------------------------------------- |
-| `{base}_diffuse.png`         | UV     | albédo / base color (**requis**)        |
-| `{base}_normal.png`          | UV     | normal map tangente (**requis**)        |
-| `{base}_subsurface.png`      | UV     | carte subsurface (option)               |
-| `{base}_topview.png`         | image  | rendu top-view (étape 1, sortie)        |
-| `{base}_mask_N.png`          | image  | masque de zone (étape 2)                |
-| `{base}_mask_plate.png`      | image  | masque plate → Coat (étape 2, option)   |
-| `{base}_mask_*_uv.png`       | UV     | masque reprojeté (étape 3 → material)   |
-| `..._inv...`                 |        | variante pré-inversée                   |
+| File                         | Space  | Role                                   |
+| ---------------------------- | ------ | -------------------------------------- |
+| `{base}_diffuse.png`         | UV     | albedo / base color (**required**)     |
+| `{base}_normal.png`          | UV     | tangent-space normal map (**required**)|
+| `{base}_subsurface.png`      | UV     | subsurface map (optional)              |
+| `{base}_topview.png`         | image  | top-view render (step 1 output)        |
+| `{base}_mask_N.png`          | image  | zone mask (step 2)                     |
+| `{base}_mask_plate.png`      | image  | plate mask → Coat (step 2, optional)   |
+| `{base}_mask_*_uv.png`       | UV     | reprojected mask (step 3 → material)   |
+| `..._inv...`                 |        | pre-inverted variant                   |
 
-L'étape 3 reprojette les `_mask_*` espace-image (sans `_uv`) ; le material ne
-consomme que les `_uv`.
+Step 3 reprojects the image-space `_mask_*` (without `_uv`); the material only
+consumes the `_uv` ones.
 
 ---
 
-## Structure du dépôt
+## Repository layout
 
 ```
 pbr_toolkit/
-├── __init__.py          bl_info + register() unique
-├── properties.py        modèle de données unique (scene.pbr_toolkit)
-├── operators.py         3 opérateurs fins → délèguent au noyau
-├── ui.py                1 panneau parent + 3 sous-panneaux
-└── core/                logique métier (sans classes Blender)
-    ├── naming.py            convention {base}_* (source unique)
-    ├── camera_contract.py   contrat pbrtk_* sur la caméra (source unique)
-    ├── image_io.py          I/O image foreach_get/set mutualisée
-    ├── render.py            rendu top-view DiffCol
-    ├── reproject.py         reprojection masques → UV
+├── __init__.py          bl_info + single register()
+├── properties.py        single data model (scene.pbr_toolkit)
+├── operators.py         3 thin operators → delegate to the core
+├── ui.py                1 parent panel + 3 sub-panels
+└── core/                business logic (no Blender classes)
+    ├── naming.py            naming convention {base}_* (single source)
+    ├── camera_contract.py   pbrtk_* contract on the camera (single source)
+    ├── image_io.py          shared foreach_get/set image I/O
+    ├── render.py            top-view DiffCol render
+    ├── reproject.py         mask → UV reprojection
     └── material.py          node group + material
 ```
 
 ---
 
-## Licence
+## License
 
-Les addons Blender distribués doivent être compatibles **GPL** (l'API `bpy` est
-sous GPL). Aucun fichier `LICENSE` n'est encore présent — à ajouter (GPL-2.0+ ou
-GPL-3.0) avant toute diffusion publique.
+[MIT](LICENSE) © Romeo Ducos.

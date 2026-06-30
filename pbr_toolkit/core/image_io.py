@@ -1,8 +1,8 @@
 """
-image_io.py — I/O image mutualisée.
+image_io.py — shared image I/O.
 
-Lecture/écriture des pixels via foreach_get/foreach_set (rapide, vs le
-marshalling Python de img.pixels[:], prohibitif en 4K/8K).
+Pixel read/write through foreach_get/foreach_set (fast, versus the Python-level
+marshalling of img.pixels[:], which is prohibitive at 4K/8K).
 """
 
 import os
@@ -12,8 +12,8 @@ import bpy
 
 def load_gray(path):
     """
-    Charge une image en niveaux de gris (canal R), orientée top-down.
-    Retourne (array HxW float32, w, h) ou (None, 0, 0) si invalide.
+    Load an image as grayscale (R channel), oriented top-down.
+    Returns (HxW float32 array, w, h) or (None, 0, 0) if invalid.
     """
     img = bpy.data.images.load(path, check_existing=False)
     try:
@@ -23,14 +23,14 @@ def load_gray(path):
         buf = np.empty(w * h * 4, dtype=np.float32)
         img.pixels.foreach_get(buf)
         gray = buf.reshape(h, w, 4)[:, :, 0]
-        # Blender charge bottom-up : on flip pour avoir y=0 en haut.
+        # Blender loads bottom-up: flip so y=0 is at the top.
         return np.ascontiguousarray(np.flipud(gray)), w, h
     finally:
         bpy.data.images.remove(img)
 
 
 def save_gray_png(arr, path):
-    """Sauve un array (H, W) float32 [0,1] en PNG niveaux de gris RGB."""
+    """Save an (H, W) float32 [0,1] array as a grayscale RGB PNG."""
     h, w = arr.shape
     rgba = np.empty((h, w, 4), dtype=np.float32)
     rgba[:, :, 0] = arr
@@ -40,7 +40,7 @@ def save_gray_png(arr, path):
     img = bpy.data.images.new("__pbrtk_tmp__", width=w, height=h,
                               alpha=False, float_buffer=False)
     try:
-        # Blender stocke bottom-up : on flip avant écriture.
+        # Blender stores bottom-up: flip before writing.
         flat = np.ascontiguousarray(np.flipud(rgba).ravel(), dtype=np.float32)
         img.pixels.foreach_set(flat)
         img.filepath_raw = path
@@ -51,7 +51,7 @@ def save_gray_png(arr, path):
 
 
 def load_datablock(path, colorspace="sRGB"):
-    """Charge (ou réutilise) une image data-block pour un node Image Texture."""
+    """Load (or reuse) an image data-block for an Image Texture node."""
     name = os.path.basename(path)
     if name in bpy.data.images:
         return bpy.data.images[name]

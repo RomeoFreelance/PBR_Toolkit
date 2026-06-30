@@ -1,11 +1,10 @@
 """
-reproject.py — Étape 3 : reprojection des masques espace-image vers l'espace UV.
+reproject.py — Step 3: reproject image-space masks into UV space.
 
-Reprojection inverse vectorisée (NumPy) : pour chaque triangle du mesh ÉVALUÉ
-(modifiers appliqués, cohérent avec le rendu), on rasterise dans l'espace UV ;
-pour chaque texel on calcule sa position world via barycentriques puis on
-projette sur l'image source via le contrat caméra ortho. Pas de raycasting,
-pas de trous.
+Vectorized inverse reprojection (NumPy): for each triangle of the EVALUATED
+mesh (modifiers applied, consistent with the render), rasterize in UV space;
+for each texel compute its world position via barycentrics, then project onto
+the source image using the ortho camera contract. No raycasting, no holes.
 """
 
 import os
@@ -19,14 +18,14 @@ from . import image_io
 
 def reproject_mask(mesh, mw, mask_img, contract, uv_res):
     """
-    Reprojette un masque espace-image vers une texture UV.
-    `mesh` est déjà triangulé (calc_loop_triangles) ; `mw` sa matrice world.
-    Retourne un array (uv_res, uv_res) float32 dans [0, 1].
+    Reproject an image-space mask into a UV texture.
+    `mesh` is already triangulated (calc_loop_triangles); `mw` is its world
+    matrix. Returns a (uv_res, uv_res) float32 array in [0, 1].
     """
     cx      = contract.center_x
     cy      = contract.center_y
     extent  = contract.extent
-    src_res = mask_img.shape[0]  # masque carré
+    src_res = mask_img.shape[0]  # square mask
 
     out = np.zeros((uv_res, uv_res), dtype=np.float32)
     uv_layer = mesh.uv_layers.active.data
@@ -39,7 +38,7 @@ def reproject_mask(mesh, mw, mask_img, contract, uv_res):
         uv1 = uv_layer[tri.loops[1]].uv
         uv2 = uv_layer[tri.loops[2]].uv
 
-        # UV en pixels (origine bas-gauche conservée, flip Y à la fin)
+        # UV in pixels (bottom-left origin kept, Y flipped at the end)
         u0p, v0p = uv0.x * uv_res, uv0.y * uv_res
         u1p, v1p = uv1.x * uv_res, uv1.y * uv_res
         u2p, v2p = uv2.x * uv_res, uv2.y * uv_res
@@ -72,7 +71,7 @@ def reproject_mask(mesh, mw, mask_img, contract, uv_res):
         wy = b0 * v0.y + b1 * v1.y + b2 * v2.y
 
         px = ((wx - cx) / extent + 0.5) * src_res
-        py = ((cy - wy) / extent + 0.5) * src_res  # Y inversé (image top-down)
+        py = ((cy - wy) / extent + 0.5) * src_res  # Y inverted (top-down image)
         ix = np.clip(px.astype(np.int32), 0, src_res - 1)
         iy = np.clip(py.astype(np.int32), 0, src_res - 1)
 
@@ -91,7 +90,7 @@ def reproject_mask(mesh, mw, mask_img, contract, uv_res):
 
 
 def dilate_uv(arr, iterations=4):
-    """Edge padding : étend les valeurs non-nulles sur les texels voisins vides."""
+    """Edge padding: grow non-zero values onto empty neighbor texels."""
     out = arr.copy()
     for _ in range(iterations):
         empty = out == 0.0
@@ -107,36 +106,36 @@ def dilate_uv(arr, iterations=4):
 
 
 def reproject_all(context, settings):
-    """Retourne (ok: bool, message: str)."""
+    """Returns (ok: bool, message: str)."""
     folder = bpy.path.abspath(settings.project_folder)
     if not folder or not os.path.isdir(folder):
-        return False, "Dossier projet invalide."
+        return False, "Invalid project folder."
 
     cam = settings.camera_override or bpy.data.objects.get((settings.camera_name or "").strip())
     if not camera_contract.has_contract(cam):
-        return False, ("Caméra de contrat introuvable — lance d'abord "
-                       "l'étape 1 (Render Top View).")
+        return False, ("Contract camera not found - run step 1 "
+                       "(Render Top View) first.")
     contract = camera_contract.read(cam)
 
     mesh_obj = bpy.data.objects.get(contract.target_mesh)
     if not mesh_obj or mesh_obj.type != "MESH":
-        return False, f"Mesh cible '{contract.target_mesh}' introuvable."
+        return False, f"Target mesh '{contract.target_mesh}' not found."
 
-    base   = contract.base_name or naming.resolve_base_name(settings, context)
-    masks  = naming.list_source_masks(folder, base)
+    base  = contract.base_name or naming.resolve_base_name(settings, context)
+    masks = naming.list_source_masks(folder, base)
     if not masks:
-        return False, f"Aucun masque espace-image trouvé pour '{base}'."
+        return False, f"No image-space mask found for '{base}'."
 
-    uv_res = int(settings.uv_resolution)
+    uv_res  = int(settings.uv_resolution)
     padding = int(settings.uv_padding)
 
-    # Mesh évalué (modifiers appliqués) ; évalué/triangulé une seule fois.
+    # Evaluated mesh (modifiers applied); evaluated/triangulated once.
     deps      = context.evaluated_depsgraph_get()
     obj_eval  = mesh_obj.evaluated_get(deps)
     mesh_eval = obj_eval.to_mesh()
     try:
         if not mesh_eval.uv_layers.active:
-            return False, "Le mesh n'a pas de UV map active."
+            return False, "Mesh has no active UV map."
         mesh_eval.calc_loop_triangles()
         mw = obj_eval.matrix_world.copy()
 
@@ -145,7 +144,7 @@ def reproject_all(context, settings):
             print(f"[pbr_toolkit] reproject {i}/{len(masks)} {name}")
             gray, w, h = image_io.load_gray(mp)
             if gray is None or w != h:
-                print(f"  skip (taille invalide {w}x{h})")
+                print(f"  skip (invalid size {w}x{h})")
                 continue
             uv_arr = reproject_mask(mesh_eval, mw, gray, contract, uv_res)
             if padding > 0:
@@ -160,4 +159,4 @@ def reproject_all(context, settings):
     finally:
         obj_eval.to_mesh_clear()
 
-    return True, f"Terminé : {len(masks)} masque(s) reprojeté(s)."
+    return True, f"Done: {len(masks)} mask(s) reprojected."

@@ -1,1 +1,1 @@
-# pbr_toolkit.core — logique métier pure (sans classes Blender Operator/Panel).
+# pbr_toolkit.core — pure business logic (no Blender Operator/Panel classes).

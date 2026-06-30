@@ -1,5 +1,5 @@
 """
-operators.py — opérateurs fins déléguant au noyau (pbr_toolkit.core).
+operators.py — thin operators delegating to the core (pbr_toolkit.core).
 """
 
 import os
@@ -12,9 +12,9 @@ from .core import render, reproject, material, naming
 
 def resolve_textures(settings, folder, base):
     """
-    Textures du material : auto-détection par convention, écrasée champ par
-    champ par les overrides renseignés. Liste de masques non vide = override
-    complet des masques de zone.
+    Material textures: auto-detected by convention, then overridden field by
+    field by any set override. A non-empty mask list fully overrides the zone
+    masks.
     """
     tex = naming.find_uv_textures(folder, base)
 
@@ -40,7 +40,7 @@ def resolve_textures(settings, folder, base):
 class PBRTK_OT_RenderTopView(Operator):
     bl_idname      = "pbrtk.render_topview"
     bl_label       = "Render Top View"
-    bl_description = "Rendu orthographique top-view (passe DiffCol) pour segmentation"
+    bl_description = "Orthographic top-view render (DiffCol pass) for segmentation"
     bl_options     = {"REGISTER"}
 
     def execute(self, context):
@@ -52,7 +52,7 @@ class PBRTK_OT_RenderTopView(Operator):
 class PBRTK_OT_MasksToUV(Operator):
     bl_idname      = "pbrtk.masks_to_uv"
     bl_label       = "Reproject Masks to UV"
-    bl_description = "Reprojette les masques espace-image vers l'espace UV"
+    bl_description = "Reproject image-space masks into UV space"
     bl_options     = {"REGISTER"}
 
     def execute(self, context):
@@ -64,24 +64,24 @@ class PBRTK_OT_MasksToUV(Operator):
 class PBRTK_OT_SetupMaterial(Operator):
     bl_idname      = "pbrtk.setup_material"
     bl_label       = "Setup Material"
-    bl_description = "Construit le node graph PBR à partir des textures UV"
+    bl_description = "Build the PBR node graph from the UV textures"
     bl_options     = {"REGISTER", "UNDO"}
 
     def execute(self, context):
         settings = context.scene.pbr_toolkit
         folder = bpy.path.abspath(settings.project_folder)
         if not folder or not os.path.isdir(folder):
-            self.report({"ERROR"}, "Dossier projet invalide.")
+            self.report({"ERROR"}, "Invalid project folder.")
             return {"CANCELLED"}
 
         obj = context.active_object
         if not obj or obj.type != "MESH":
-            self.report({"ERROR"}, "Sélectionner un mesh.")
+            self.report({"ERROR"}, "Select a mesh.")
             return {"CANCELLED"}
 
         base = naming.resolve_base_name(settings, context)
         if not base:
-            self.report({"ERROR"}, "Nom de base introuvable.")
+            self.report({"ERROR"}, "Could not resolve base name.")
             return {"CANCELLED"}
 
         try:
@@ -96,11 +96,11 @@ class PBRTK_OT_SetupMaterial(Operator):
         return {"FINISHED"} if ok else {"CANCELLED"}
 
 
-# --- Gestion de la liste de masques (override) ---
+# --- Mask list management (override) ---
 
 class PBRTK_OT_MaskAdd(Operator):
     bl_idname  = "pbrtk.mask_add"
-    bl_label   = "Ajouter un masque"
+    bl_label   = "Add mask"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
@@ -112,7 +112,7 @@ class PBRTK_OT_MaskAdd(Operator):
 
 class PBRTK_OT_MaskRemove(Operator):
     bl_idname  = "pbrtk.mask_remove"
-    bl_label   = "Retirer le masque"
+    bl_label   = "Remove mask"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
@@ -125,7 +125,7 @@ class PBRTK_OT_MaskRemove(Operator):
 
 class PBRTK_OT_MaskMove(Operator):
     bl_idname  = "pbrtk.mask_move"
-    bl_label   = "Déplacer le masque"
+    bl_label   = "Move mask"
     bl_options = {"REGISTER", "UNDO"}
 
     direction: EnumProperty(items=[("UP", "Up", ""), ("DOWN", "Down", "")])

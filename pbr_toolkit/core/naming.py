@@ -1,17 +1,17 @@
 """
-naming.py — convention de nommage du pipeline, source unique de vérité.
+naming.py — single source of truth for the pipeline naming convention.
 
-Tout est dérivé d'un dossier projet unique et d'un « nom de base » (par défaut
-le nom du mesh actif). Générique : aucune hypothèse métier.
+Everything is derived from a single project folder and a "base name" (the
+active mesh name by default). Generic: no domain-specific assumptions.
 
-  {base}_diffuse.png         albedo / base color          (requis material)
-  {base}_normal.png          normal map tangente          (requis material)
-  {base}_subsurface.png      carte subsurface             (option)
-  {base}_topview.png         rendu top-view               (étape 1)
-  {base}_mask_plate.png      masque "plate" espace-image  (étape 2, option)
-  {base}_mask_<n>.png        masque de zone espace-image  (étape 2)
-  {base}_mask_*_uv.png       masque reprojeté espace-UV   (étape 3 → material)
-  ..._inv...                 variante pré-inversée
+  {base}_diffuse.png         albedo / base color          (material, required)
+  {base}_normal.png          tangent-space normal map     (material, required)
+  {base}_subsurface.png      subsurface map               (optional)
+  {base}_topview.png         top-view render              (step 1)
+  {base}_mask_plate.png      "plate" mask, image-space    (step 2, optional)
+  {base}_mask_<n>.png        zone mask, image-space       (step 2)
+  {base}_mask_*_uv.png       reprojected mask, UV-space   (step 3 -> material)
+  ..._inv...                 pre-inverted variant
 """
 
 import os
@@ -26,7 +26,7 @@ _INV_RE      = re.compile(r"_inv(?=\.|_|$)", re.IGNORECASE)
 
 
 def resolve_base_name(settings, context):
-    """Nom de base : champ explicite, sinon nom du mesh actif."""
+    """Base name: explicit field, otherwise the active mesh name."""
     name = (settings.base_name or "").strip()
     if name:
         return name
@@ -47,7 +47,7 @@ def topview_filename(base):
 
 
 def uv_output_path(src_path, out_folder=None):
-    """Chemin de sortie reprojeté : insère _uv et force .png."""
+    """Reprojected output path: insert _uv and force .png."""
     d, fname = os.path.split(src_path)
     stem, _ext = os.path.splitext(fname)
     return os.path.join(out_folder or d, f"{stem}_uv.png")
@@ -55,8 +55,8 @@ def uv_output_path(src_path, out_folder=None):
 
 def list_source_masks(folder, base):
     """
-    Masques espace-image à reprojeter pour cet asset : numérotés + plate,
-    en excluant ceux déjà reprojetés (_uv). Triés par index (plate en tête).
+    Image-space masks to reproject for this asset: numbered + plate, excluding
+    already-reprojected ones (_uv). Sorted by index (plate first).
     """
     prefix = f"{base}_mask_".lower()
     found = []
@@ -80,15 +80,15 @@ def list_source_masks(folder, base):
 
 def find_uv_textures(folder, base):
     """
-    Textures consommées par le material : diffuse/normal/subsurface +
-    masques espace-UV uniquement (_uv). Le plate-mask UV alimente le Coat.
+    Textures consumed by the material: diffuse/normal/subsurface + UV-space
+    masks only (_uv). The UV plate mask feeds the Coat output.
     """
     result = {
         "diffuse":    None,
         "normal":     None,
         "subsurface": None,
         "mask_plate": None,
-        "masks":      [],   # liste de (path, inverted, idx)
+        "masks":      [],   # list of (path, inverted, idx)
     }
     bl = base.lower()
     raw = []

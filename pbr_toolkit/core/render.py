@@ -1,9 +1,9 @@
 """
-render.py — Étape 1 : rendu orthographique top-view via passe DiffCol (Cycles).
+render.py — Step 1: orthographic top-view render via the DiffCol pass (Cycles).
 
-Crée/réutilise une caméra ortho PERSISTANTE cadrée sur la bounding box du
-mesh, et y écrit le contrat géométrique (camera_contract) que l'étape 3
-relira. La passe DiffCol sort l'albédo « à plat » sans ombrage.
+Creates/reuses a PERSISTENT ortho camera framed on the mesh bounding box, and
+writes the geometric contract (camera_contract) that step 3 reads back. The
+DiffCol pass outputs the "flat" albedo without shading.
 """
 
 import os
@@ -26,24 +26,24 @@ def get_obj_bounds(obj):
 
 
 def render_topview(context, settings):
-    """Retourne (ok: bool, message: str)."""
+    """Returns (ok: bool, message: str)."""
     import mathutils
 
     folder = bpy.path.abspath(settings.project_folder)
     if not folder or not os.path.isdir(folder):
-        return False, "Dossier projet invalide."
+        return False, "Invalid project folder."
 
     obj = context.active_object
     if not obj or obj.type != "MESH":
-        return False, "Sélectionner un mesh avant le rendu."
+        return False, "Select a mesh before rendering."
 
     cam_name = (settings.camera_name or "").strip()
     if not cam_name:
-        return False, "Nom de caméra vide."
+        return False, "Camera name is empty."
 
     base = naming.resolve_base_name(settings, context)
     if not base:
-        return False, "Nom de base introuvable."
+        return False, "Could not resolve base name."
 
     resolution = int(settings.render_resolution)
     basename   = naming.topview_stem(base)
@@ -51,7 +51,7 @@ def render_topview(context, settings):
     scene      = context.scene
     vl         = scene.view_layers[0]
 
-    # --- Sauvegarde de l'état scène ---
+    # --- Save scene state ---
     prev_engine      = scene.render.engine
     prev_res_x       = scene.render.resolution_x
     prev_res_y       = scene.render.resolution_y
@@ -67,19 +67,19 @@ def render_topview(context, settings):
 
     cam_obj  = None
     cam_data = None
-    ret      = (False, "Échec inattendu.")
+    ret      = (False, "Unexpected failure.")
 
     try:
         (cx, cy), extent, z_max = get_obj_bounds(obj)
 
-        # Caméra du même nom déjà présente : on la remplace (relance), mais on
-        # refuse d'écraser un objet homonyme qui ne serait pas une caméra.
+        # A camera with the same name already exists: replace it (re-run), but
+        # refuse to overwrite a same-named object that is not a camera.
         if cam_name in bpy.data.objects:
             old = bpy.data.objects[cam_name]
             if old.type != "CAMERA":
                 raise RuntimeError(
-                    f"Un objet nommé '{cam_name}' existe déjà et n'est pas une "
-                    f"caméra. Renommez-le ou choisissez un autre nom."
+                    f"An object named '{cam_name}' already exists and is not a "
+                    f"camera. Rename it or choose another name."
                 )
             old_data = old.data
             bpy.data.objects.remove(old, do_unlink=True)
@@ -97,14 +97,14 @@ def render_topview(context, settings):
         cam_obj.rotation_euler = mathutils.Euler((0.0, 0.0, 0.0), "XYZ")
         scene.camera           = cam_obj
 
-        # Contrat pour l'étape 3.
+        # Contract for step 3.
         camera_contract.write(cam_obj, camera_contract.CameraContract(
             target_mesh=obj.name, base_name=base,
             center_x=cx, center_y=cy, extent=extent,
             resolution=resolution, z_max=z_max,
         ))
 
-        # --- Cycles + passe DiffCol ---
+        # --- Cycles + DiffCol pass ---
         scene.render.engine                = "CYCLES"
         scene.render.resolution_x          = resolution
         scene.render.resolution_y          = resolution
@@ -115,7 +115,7 @@ def render_topview(context, settings):
             scene.cycles.samples = 1
         vl.use_pass_diffuse_color = True
 
-        # --- Compositor : RLayers (DiffCol) -> File Output ---
+        # --- Compositor: RLayers (DiffCol) -> File Output ---
         scene.use_nodes = True
         tree  = scene.node_tree
         nodes = tree.nodes
@@ -146,11 +146,11 @@ def render_topview(context, settings):
 
         if diffcol_sock is None:
             avail = [s.name for s in n_rl.outputs]
-            raise RuntimeError(f"Passe DiffCol introuvable. Passes dispo : {avail}")
+            raise RuntimeError(f"DiffCol pass not found. Available passes: {avail}")
 
         links.new(diffcol_sock, n_fo.inputs[0])
 
-        # --- Rendu ---
+        # --- Render ---
         bpy.ops.render.render(write_still=False)
 
         frame_str = f"{scene.frame_current:04d}"
@@ -161,14 +161,14 @@ def render_topview(context, settings):
             os.replace(framed, out_path)
 
         if os.path.exists(out_path):
-            ret = (True, f"Top view → {out_path} (cam: {cam_name})")
+            ret = (True, f"Top view -> {out_path} (cam: {cam_name})")
         else:
-            ret = (False, f"Fichier attendu non trouvé : {out_path}")
+            ret = (False, f"Expected file not found: {out_path}")
 
     except Exception as e:
         import traceback
         traceback.print_exc()
-        # État incohérent : on nettoie la caméra créée.
+        # Inconsistent state: clean up the created camera.
         if cam_obj:
             try:
                 bpy.data.objects.remove(cam_obj, do_unlink=True)
@@ -182,7 +182,7 @@ def render_topview(context, settings):
         ret = (False, str(e))
 
     finally:
-        # --- Restauration scène (mais on GARDE la caméra) ---
+        # --- Restore scene state (but KEEP the camera) ---
         scene.render.engine                     = prev_engine
         scene.render.resolution_x               = prev_res_x
         scene.render.resolution_y               = prev_res_y

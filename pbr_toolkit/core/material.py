@@ -1,9 +1,9 @@
 """
-material.py — Étape 4 : node graph PBR ajustable.
+material.py — Step 4: adjustable PBR node graph.
 
-Tout le traitement vit dans un node group « PBRToolkit_Controls » (HSV, normal
-map, bump, chaînes Roughness/Specular/Subsurface par zone) câblé sur un
-Principled BSDF. Le material consomme les masques espace-UV (_uv).
+All processing lives inside a "PBRToolkit_Controls" node group (HSV, normal
+map, bump, per-zone Roughness/Specular/Subsurface chains) wired into a
+Principled BSDF. The material consumes UV-space masks (_uv).
 """
 
 import bpy
@@ -11,7 +11,7 @@ import bpy
 from . import image_io
 
 
-# --- Layout (dans le group) ---
+# --- Layout (inside the group) ---
 GX_HSV   = -2000
 GX_BW    = -1700
 GX_NM    = -1700
@@ -91,7 +91,7 @@ def _build_node_group(tex, n_masks, has_subsurface):
     n_gin.location  = (GX_IN,  0)
     n_gout.location = (GX_OUT, 0)
 
-    # --- INPUTS : textures ---
+    # --- INPUTS: textures ---
     _add_socket(grp, "NodeSocketColor", "Diffuse",    "INPUT", default=(0.8, 0.8, 0.8, 1.0))
     _add_socket(grp, "NodeSocketColor", "Normal Tex", "INPUT", default=(0.5, 0.5, 1.0, 1.0))
     if tex["mask_plate"]:
@@ -101,7 +101,7 @@ def _build_node_group(tex, n_masks, has_subsurface):
     if has_subsurface:
         _add_socket(grp, "NodeSocketColor", "Subsurface Tex", "INPUT", default=(0.8, 0.6, 0.5, 1.0))
 
-    # --- INPUTS : sliders fixes ---
+    # --- INPUTS: fixed sliders ---
     _add_socket(grp, "NodeSocketFloat", "Hue",             "INPUT", default=0.5,  min_val=0.0, max_val=1.0)
     _add_socket(grp, "NodeSocketFloat", "Saturation",      "INPUT", default=1.0,  min_val=0.0, max_val=2.0)
     _add_socket(grp, "NodeSocketFloat", "Value",           "INPUT", default=1.0,  min_val=0.0, max_val=2.0)
@@ -112,7 +112,7 @@ def _build_node_group(tex, n_masks, has_subsurface):
     if has_subsurface:
         _add_socket(grp, "NodeSocketColor", "Subsurface Base", "INPUT", default=(0.5, 0.5, 0.5, 1.0))
 
-    # --- INPUTS : sliders par zone ---
+    # --- INPUTS: per-zone sliders ---
     for i in range(1, n_masks + 1):
         _add_socket(grp, "NodeSocketFloat", f"Roughness Zone {i}", "INPUT", default=0.5, min_val=0.0, max_val=2.0)
         _add_socket(grp, "NodeSocketFloat", f"Rough Invert {i}",   "INPUT", default=0.0, min_val=0.0, max_val=1.0)
@@ -131,7 +131,7 @@ def _build_node_group(tex, n_masks, has_subsurface):
     if has_subsurface:
         _add_socket(grp, "NodeSocketFloat", "Subsurface Weight", "OUTPUT")
 
-    # --- Nodes internes ---
+    # --- Internal nodes ---
     n_hsv = _nn(gnodes, "ShaderNodeHueSaturation", GX_HSV, GY_DIFFUSE, "HSV")
     glinks.new(n_gin.outputs["Diffuse"],    n_hsv.inputs["Color"])
     glinks.new(n_gin.outputs["Hue"],        n_hsv.inputs["Hue"])
@@ -163,7 +163,7 @@ def _build_node_group(tex, n_masks, has_subsurface):
         sub_socket = _build_color_chain(gnodes, glinks, n_gin,
                                        mask_socket_names, GX_CHAIN, GY_SUB)
 
-    # --- Wiring vers Group Output ---
+    # --- Wire to Group Output ---
     glinks.new(n_hsv.outputs["Color"],   n_gout.inputs["Base Color"])
     glinks.new(n_bump.outputs["Normal"], n_gout.inputs["Normal"])
     glinks.new(rough_socket,             n_gout.inputs["Roughness"])
@@ -182,7 +182,7 @@ def _build_node_group(tex, n_masks, has_subsurface):
 
 def _build_float_chain(gnodes, glinks, n_gin, n_bw,
                        mask_socket_names, x_start, y_base, chain_name):
-    """Chaîne Roughness ou Specular (valeurs flottantes par zone)."""
+    """Roughness or Specular chain (per-zone float values)."""
     short    = "Rough" if chain_name == "Roughness" else "Spec"
     base_key = f"{chain_name} Base"
 
@@ -223,8 +223,8 @@ def _build_float_chain(gnodes, glinks, n_gin, n_bw,
         n_mix.clamp_factor = True
         glinks.new(n_gin.outputs[mask_sock_name], n_mix.inputs["Factor"])
 
-        # ShaderNodeMix (4.x) expose plusieurs paires A/B (une par data_type) :
-        # on cible les sockets FLOAT (type VALUE).
+        # ShaderNodeMix (4.x) exposes several A/B pairs (one per data_type):
+        # target the FLOAT sockets (type VALUE).
         float_socks = [s for s in n_mix.inputs if s.name in ("A", "B") and s.type == "VALUE"]
         if len(float_socks) >= 2:
             glinks.new(prev_socket,            float_socks[0])
@@ -240,7 +240,7 @@ def _build_float_chain(gnodes, glinks, n_gin, n_bw,
 
 
 def _build_color_chain(gnodes, glinks, n_gin, mask_socket_names, x_start, y_base):
-    """Chaîne Subsurface (couleur par zone)."""
+    """Subsurface chain (per-zone color)."""
     prev_socket = n_gin.outputs["Subsurface Base"]
     for i, mask_sock_name in enumerate(mask_socket_names):
         zone_idx = i + 1
@@ -264,16 +264,16 @@ def _build_color_chain(gnodes, glinks, n_gin, mask_socket_names, x_start, y_base
 
 def build_material(obj, tex, base):
     """
-    Construit le material à partir d'un dict `tex` déjà résolu (convention +
-    overrides). Retourne (ok: bool, message: str).
+    Build the material from an already-resolved `tex` dict (convention +
+    overrides). Returns (ok: bool, message: str).
     """
     n_masks        = len(tex["masks"])
     has_subsurface = tex["subsurface"] is not None
 
     if not tex["diffuse"]:
-        return False, f"Aucun fichier _diffuse trouvé pour '{base}'."
+        return False, f"No _diffuse file found for '{base}'."
     if not tex["normal"]:
-        return False, f"Aucun fichier _normal trouvé pour '{base}'."
+        return False, f"No _normal file found for '{base}'."
 
     grp = _build_node_group(tex, n_masks, has_subsurface)
 
@@ -292,7 +292,7 @@ def build_material(obj, tex, base):
     links = mat.node_tree.links
     nodes.clear()
 
-    # 1. Image Texture nodes (espace-UV)
+    # 1. Image Texture nodes (UV-space)
     n_diff = _img_node(nodes, tex["diffuse"], "sRGB",      MX_TEX, MY_DIFFUSE, "Diffuse")
     n_norm = _img_node(nodes, tex["normal"],  "Non-Color", MX_TEX, MY_NORMAL,  "Normal Tex")
 
@@ -364,4 +364,4 @@ def build_material(obj, tex, base):
     n_out = _nn(nodes, "ShaderNodeOutputMaterial", MX_OUT, 300, "Material Output")
     links.new(n_bsdf.outputs["BSDF"], n_out.inputs["Surface"])
 
-    return True, f"Material '{mat_name}' créé ({n_masks} zone(s))."
+    return True, f"Material '{mat_name}' created ({n_masks} zone(s))."

@@ -1,8 +1,8 @@
 """
-properties.py — modèle de données unique : scene.pbr_toolkit (PBRTK_Settings).
+properties.py — single data model: scene.pbr_toolkit (PBRTK_Settings).
 
-Principe des overrides : chaque champ est optionnel ; vide = auto-détection par
-convention de nommage (voir core/naming.py).
+Override principle: every field is optional; empty = auto-detection via the
+naming convention (see core/naming.py).
 """
 
 import bpy
@@ -15,14 +15,14 @@ from bpy.props import (
 
 _RENDER_RES = [
     ("1024", "1K — 1024px", ""),
-    ("2048", "2K — 2048px (recommandé)", ""),
+    ("2048", "2K — 2048px (recommended)", ""),
     ("4096", "4K — 4096px", ""),
 ]
 
 _UV_RES = [
     ("1024", "1K", ""),
     ("2048", "2K", ""),
-    ("4096", "4K (recommandé)", ""),
+    ("4096", "4K (recommended)", ""),
     ("8192", "8K", ""),
 ]
 
@@ -32,60 +32,60 @@ def _camera_poll(self, obj):
 
 
 class PBRTK_MaskItem(PropertyGroup):
-    """Un masque de zone (override manuel)."""
+    """A zone mask (manual override)."""
     path: StringProperty(
-        name="Masque",
-        description="Fichier masque espace-UV pour cette zone",
+        name="Mask",
+        description="UV-space mask file for this zone",
         subtype="FILE_PATH",
     )
     invert: BoolProperty(
-        name="Inverser",
-        description="Inverse le masque avant utilisation",
+        name="Invert",
+        description="Invert the mask before use",
         default=False,
     )
 
 
 class PBRTK_Settings(PropertyGroup):
-    # --- Communs ---
+    # --- Common ---
     project_folder: StringProperty(
-        name="Dossier projet",
-        description="Dossier unique contenant rendus, masques et textures de l'asset",
+        name="Project folder",
+        description="Single folder holding the asset's renders, masks and textures",
         subtype="DIR_PATH",
         default="",
     )
     base_name: StringProperty(
-        name="Nom de base",
-        description="Préfixe des fichiers ({base}_*). Vide = nom du mesh actif.",
+        name="Base name",
+        description="File prefix ({base}_*). Empty = active mesh name.",
         default="",
     )
     camera_name: StringProperty(
-        name="Nom caméra",
-        description="Caméra ortho persistante (contrat étape 1 → 3)",
+        name="Camera name",
+        description="Persistent ortho camera (contract step 1 -> 3)",
         default="PBRTK_TopView_Cam",
     )
 
-    # --- Étape 1 ---
+    # --- Step 1 ---
     render_resolution: EnumProperty(
-        name="Résolution rendu", items=_RENDER_RES, default="2048",
+        name="Render resolution", items=_RENDER_RES, default="2048",
     )
 
-    # --- Étape 3 ---
+    # --- Step 3 ---
     uv_resolution: EnumProperty(
-        name="Résolution UV", items=_UV_RES, default="4096",
+        name="UV resolution", items=_UV_RES, default="4096",
     )
     uv_padding: IntProperty(
-        name="Padding UV (px)",
-        description="Edge padding contre les cracks aux seams UV (0 = désactivé)",
+        name="UV padding (px)",
+        description="Edge padding to avoid cracks at UV seams (0 = disabled)",
         default=4, min=0, max=32,
     )
     camera_override: PointerProperty(
-        name="Caméra (override)",
-        description="Caméra de contrat à utiliser. Vide = résolue par 'Nom caméra'.",
+        name="Camera (override)",
+        description="Contract camera to use. Empty = resolved by 'Camera name'.",
         type=bpy.types.Object,
         poll=_camera_poll,
     )
 
-    # --- Étape 4 : overrides textures (vide = auto par convention) ---
+    # --- Step 4: texture overrides (empty = auto by convention) ---
     tex_diffuse: StringProperty(name="Diffuse (override)", subtype="FILE_PATH")
     tex_normal: StringProperty(name="Normal (override)", subtype="FILE_PATH")
     tex_subsurface: StringProperty(name="Subsurface (override)", subtype="FILE_PATH")

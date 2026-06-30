@@ -1,5 +1,5 @@
 """
-ui.py — un panneau parent « PBR Toolkit » + sous-panneaux par étape.
+ui.py — single "PBR Toolkit" parent panel + per-step sub-panels.
 """
 
 import bpy
@@ -33,10 +33,10 @@ class PBRTK_PT_main(Panel):
 
         obj = context.active_object
         if obj and obj.type == "MESH":
-            layout.label(text=f"Base : {naming.resolve_base_name(s, context)}",
+            layout.label(text=f"Base: {naming.resolve_base_name(s, context)}",
                          icon="MESH_DATA")
         else:
-            layout.label(text="Sélectionner un mesh", icon="ERROR")
+            layout.label(text="Select a mesh", icon="ERROR")
 
 
 class _ChildPanel(Panel):
@@ -59,7 +59,7 @@ class PBRTK_PT_render(_ChildPanel):
         row = layout.row()
         row.scale_y = 1.4
         row.operator("pbrtk.render_topview", icon="RENDER_STILL")
-        layout.label(text="→ {base}_topview.png", icon="INFO")
+        layout.label(text="-> {base}_topview.png", icon="INFO")
 
 
 class PBRTK_PT_masks(_ChildPanel):
@@ -70,11 +70,11 @@ class PBRTK_PT_masks(_ChildPanel):
         layout = self.layout
         s = context.scene.pbr_toolkit
 
-        layout.label(text="2. Segmentation IA externe (SAM…) :", icon="INFO")
-        layout.label(text="   {base}_topview.png → {base}_mask_N.png")
+        layout.label(text="2. External AI segmentation (SAM, ...):", icon="INFO")
+        layout.label(text="   {base}_topview.png -> {base}_mask_N.png")
         layout.separator()
 
-        layout.label(text="3. Reprojection vers UV :")
+        layout.label(text="3. Reproject to UV:")
         layout.prop(s, "uv_resolution")
         layout.prop(s, "uv_padding")
         layout.prop(s, "camera_override")
@@ -82,9 +82,9 @@ class PBRTK_PT_masks(_ChildPanel):
         cam = s.camera_override or bpy.data.objects.get((s.camera_name or "").strip())
         if camera_contract.has_contract(cam):
             c = camera_contract.read(cam)
-            layout.label(text=f"Caméra OK → mesh « {c.target_mesh} »", icon="CHECKMARK")
+            layout.label(text=f"Camera OK -> mesh '{c.target_mesh}'", icon="CHECKMARK")
         else:
-            layout.label(text="Lance d'abord l'étape 1 (caméra manquante)", icon="ERROR")
+            layout.label(text="Run step 1 first (camera missing)", icon="ERROR")
 
         row = layout.row()
         row.scale_y = 1.4
@@ -103,16 +103,16 @@ class PBRTK_PT_material(_ChildPanel):
         row.scale_y = 1.4
         row.operator("pbrtk.setup_material", icon="NODETREE")
 
-        # --- Overrides (vide = auto par convention) ---
+        # --- Overrides (empty = auto by convention) ---
         box = layout.box()
-        box.label(text="Overrides (vide = auto par convention) :", icon="FILE_TICK")
+        box.label(text="Overrides (empty = auto by convention):", icon="FILE_TICK")
         box.prop(s, "tex_diffuse")
         box.prop(s, "tex_normal")
         box.prop(s, "tex_subsurface")
         box.prop(s, "tex_plate")
 
         box.separator()
-        box.label(text="Masques de zone :")
+        box.label(text="Zone masks:")
         row = box.row()
         row.template_list("PBRTK_UL_masks", "", s, "mask_overrides",
                           s, "mask_active_index", rows=3)
@@ -124,15 +124,15 @@ class PBRTK_PT_material(_ChildPanel):
         col.operator("pbrtk.mask_move", icon="TRIA_DOWN", text="").direction = "DOWN"
 
         layout.separator()
-        layout.label(text="Convention (si pas d'override) :", icon="INFO")
+        layout.label(text="Convention (when no override):", icon="INFO")
         col2 = layout.column(align=True)
         col2.scale_y = 0.7
         for line in (
-            "{base}_diffuse.png   (requis)",
-            "{base}_normal.png    (requis)",
+            "{base}_diffuse.png   (required)",
+            "{base}_normal.png    (required)",
             "{base}_mask_N_uv.png (zones)",
             "{base}_mask_plate_uv.png (coat)",
-            "{base}_subsurface.png (option)",
+            "{base}_subsurface.png (optional)",
         ):
             col2.label(text=line)
 
