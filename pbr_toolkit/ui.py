@@ -3,11 +3,19 @@ ui.py — un panneau parent « PBR Toolkit » + sous-panneaux par étape.
 """
 
 import bpy
-from bpy.types import Panel
+from bpy.types import Panel, UIList
 
 from .core import naming, camera_contract
 
 CATEGORY = "PBR Toolkit"
+
+
+class PBRTK_UL_masks(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data,
+                  active_propname, index):
+        row = layout.row(align=True)
+        row.prop(item, "path", text="", emboss=True)
+        row.prop(item, "invert", text="", icon="MOD_MASK", toggle=True)
 
 
 class PBRTK_PT_main(Panel):
@@ -69,8 +77,9 @@ class PBRTK_PT_masks(_ChildPanel):
         layout.label(text="3. Reprojection vers UV :")
         layout.prop(s, "uv_resolution")
         layout.prop(s, "uv_padding")
+        layout.prop(s, "camera_override")
 
-        cam = bpy.data.objects.get((s.camera_name or "").strip())
+        cam = s.camera_override or bpy.data.objects.get((s.camera_name or "").strip())
         if camera_contract.has_contract(cam):
             c = camera_contract.read(cam)
             layout.label(text=f"Caméra OK → mesh « {c.target_mesh} »", icon="CHECKMARK")
@@ -88,14 +97,36 @@ class PBRTK_PT_material(_ChildPanel):
 
     def draw(self, context):
         layout = self.layout
+        s = context.scene.pbr_toolkit
+
         row = layout.row()
         row.scale_y = 1.4
         row.operator("pbrtk.setup_material", icon="NODETREE")
 
+        # --- Overrides (vide = auto par convention) ---
+        box = layout.box()
+        box.label(text="Overrides (vide = auto par convention) :", icon="FILE_TICK")
+        box.prop(s, "tex_diffuse")
+        box.prop(s, "tex_normal")
+        box.prop(s, "tex_subsurface")
+        box.prop(s, "tex_plate")
+
+        box.separator()
+        box.label(text="Masques de zone :")
+        row = box.row()
+        row.template_list("PBRTK_UL_masks", "", s, "mask_overrides",
+                          s, "mask_active_index", rows=3)
+        col = row.column(align=True)
+        col.operator("pbrtk.mask_add", icon="ADD", text="")
+        col.operator("pbrtk.mask_remove", icon="REMOVE", text="")
+        col.separator()
+        col.operator("pbrtk.mask_move", icon="TRIA_UP", text="").direction = "UP"
+        col.operator("pbrtk.mask_move", icon="TRIA_DOWN", text="").direction = "DOWN"
+
         layout.separator()
-        layout.label(text="Textures attendues (espace UV) :", icon="INFO")
-        col = layout.column(align=True)
-        col.scale_y = 0.7
+        layout.label(text="Convention (si pas d'override) :", icon="INFO")
+        col2 = layout.column(align=True)
+        col2.scale_y = 0.7
         for line in (
             "{base}_diffuse.png   (requis)",
             "{base}_normal.png    (requis)",
@@ -103,10 +134,11 @@ class PBRTK_PT_material(_ChildPanel):
             "{base}_mask_plate_uv.png (coat)",
             "{base}_subsurface.png (option)",
         ):
-            col.label(text=line)
+            col2.label(text=line)
 
 
 classes = (
+    PBRTK_UL_masks,
     PBRTK_PT_main,
     PBRTK_PT_render,
     PBRTK_PT_masks,

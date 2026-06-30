@@ -32,7 +32,7 @@ from . import operators
 from . import ui
 
 _classes = (
-    properties.PBRTK_Settings,
+    *properties.classes,
     *operators.classes,
     *ui.classes,
 )

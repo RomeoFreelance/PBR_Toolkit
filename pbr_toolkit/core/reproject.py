@@ -112,7 +112,7 @@ def reproject_all(context, settings):
     if not folder or not os.path.isdir(folder):
         return False, "Dossier projet invalide."
 
-    cam = bpy.data.objects.get((settings.camera_name or "").strip())
+    cam = settings.camera_override or bpy.data.objects.get((settings.camera_name or "").strip())
     if not camera_contract.has_contract(cam):
         return False, ("Caméra de contrat introuvable — lance d'abord "
                        "l'étape 1 (Render Top View).")

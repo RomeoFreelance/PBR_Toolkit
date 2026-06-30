@@ -8,7 +8,6 @@ Principled BSDF. Le material consomme les masques espace-UV (_uv).
 
 import bpy
 
-from . import naming
 from . import image_io
 
 
@@ -263,9 +262,11 @@ def _build_color_chain(gnodes, glinks, n_gin, mask_socket_names, x_start, y_base
 # Material builder
 # ---------------------------------------------------------------------------
 
-def build_material(obj, folder, base):
-    """Retourne (ok: bool, message: str)."""
-    tex            = naming.find_uv_textures(folder, base)
+def build_material(obj, tex, base):
+    """
+    Construit le material à partir d'un dict `tex` déjà résolu (convention +
+    overrides). Retourne (ok: bool, message: str).
+    """
     n_masks        = len(tex["masks"])
     has_subsurface = tex["subsurface"] is not None
 
